@@ -1,4 +1,3 @@
-
 # ZMQ 指南
 
 **作者: Pieter Hintjens <ph@imatix.com>, CEO iMatix Corporation.**  
@@ -62,103 +61,116 @@ git clone git://github.com/imatix/zguide.git
 
 浏览examples目录，你可以看到多种语言的实现。如果其中缺少了某种你正在使用的语言，我们很希望你可以[提交一份补充](http://zguide.zeromq.org/main:translate)。这也是本指南实用的原因，要感谢所有做出过贡献的人。
 
-所有的示例代码都以MIT/X11协议发布，若在源代码中有其他限定的除外。
+所有的示例代码都以MIT/X11协议发布，若在源代码中有其他限定的除外（ 注：本指南AAuto版本中所有AAuto范例源码使用AAuto开源许可证，大家可以自由使用无需署名或注明出处）。
 
 ### 提问-回答
 
 让我们从简单的代码开始，一段传统的Hello World程序。我们会创建一个客户端和一个服务端，客户端发送Hello给服务端，服务端返回World。下文是C语言编写的服务端，它在5555端口打开一个ZMQ套接字，等待请求，收到后应答World。
 
-**hwserver.c: Hello World server**
+**文件 hwserver.aau: Hello World 服务端（AAuto源码）**
 
-```c
-//
-//  Hello World 服务端
-//  绑定一个REP套接字至tcp://*:5555
-//  从客户端接收Hello，并应答World
-//
-#include <zmq.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
+```javascript
+import zeromq
+import console;
  
-int main (void)
-{
-    void *context = zmq_init (1);
- 
-    //  与客户端通信的套接字
-    void *responder = zmq_socket (context, ZMQ_REP);
-    zmq_bind (responder, "tcp://*:5555");
- 
-    while (1) {
-        //  等待客户端请求
-        zmq_msg_t request;
-        zmq_msg_init (&request);
-        zmq_recv (responder, &request, 0);
-        printf ("收到 Hello\n");
-        zmq_msg_close (&request);
- 
-        //  做些“处理”
-        sleep (1);
- 
-        //  返回应答
-        zmq_msg_t reply;
-        zmq_msg_init_size (&reply, 5);
-        memcpy (zmq_msg_data (&reply), "World", 5);
-        zmq_send (responder, &reply, 0);
-        zmq_msg_close (&reply);
-    }
-    //  程序不会运行到这里，以下只是演示我们应该如何结束
-    zmq_close (responder);
-    zmq_term (context);
-    return 0;
-}
+var context = zeromq.context() 
+var responder = context.zmq_socket_reply() //创建套接字
+responder.bind(  "tcp://*:5559") 
+
+console.log("服务端已启动")
+do {  
+    console.log("服务端收到消息",responder.recv() );  
+    responder.send("World")  
+}while( sleep (1) )
 ```
 
-![1](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_1.png)
+![1](https://github.com/AAuto-Quicker/zguide-cn/raw/master/images/chapter1_1.png)
 
-使用REQ-REP套接字发送和接受消息是需要遵循一定规律的。客户端首先使用zmq_send()发送消息，再用zmq_recv()接收，如此循环。如果打乱了这个顺序（如连续发送两次）则会报错。类似地，服务端必须先进行接收，后进行发送。
+ZeroMQ创建的套接字有几种不同的模式，
+例如 context.zmq_socket_reply() 创建的是REP套接字,而客户端对应的就可创建REQ套接字来连接。
 
-ZMQ使用C语言作为它参考手册的语言，本指南也以它作为示例程序的语言。如果你正在阅读本指南的在线版本，你可以看到示例代码的下方有其他语言的实现。如以下是C++语言：
+下面是客户端的代码：
 
-**hwserver.cpp: Hello World server**
+** 文件 wclient.aau : Hello World 客户端( AAuto源码 ) **
 
-```cpp
-//
-// Hello World 服务端 C++语言版
-// 绑定一个REP套接字至tcp://*:5555
-// 从客户端接收Hello，并应答World
-//
-#include <zmq.hpp>
-#include <string>
-#include <iostream>
-#include <unistd.h>
+```javascript
+import zeromq
+import console;
+
+var context = zeromq.context()  
+var requester = context.zmq_socket_request();  
+requester.connect( "tcp://localhost:5559" )
  
-int main () {
-    // 准备上下文和套接字
-    zmq::context_t context (1);
-    zmq::socket_t socket (context, ZMQ_REP);
-    socket.bind ("tcp://*:5555");
- 
-    while (true) {
-        zmq::message_t request;
- 
-        // 等待客户端请求
-        socket.recv (&request);
-        std::cout << "收到 Hello" << std::endl;
- 
-        // 做一些“处理”
-        sleep (1);
- 
-        // 应答World
-        zmq::message_t reply (5);
-        memcpy ((void *) reply.data (), "World", 5);
-        socket.send (reply);
-    }
-    return 0;
-}
+requester.send("Hello");  //发送消息
+var str = requester.recv(); //接收字符串
+console.log ("客户端收到消息 ", str );  
+
+context.term(); //关闭
 ```
 
-可以看到C语言和C++语言的API代码差不多，而在PHP这样的语言中，代码就会更为简洁：
+这看起来是否太简单了？
+ZMQ就是这样一个东西，你往里加点儿料就能制作出一枚无穷能量的原子弹，用它来拯救世界吧！
+
+
+使用REQ-REP套接字发送和接受消息是需要遵循一定规律的。
+客户端首先使用 requester.send()发送消息，再用 requester.recv() 接收，如此循环
+如果打乱了这个顺序（如连续发送两次）则会报错。类似地，服务端必须先进行接收，后进行发送。
+
+这里解释一下常用的几个函数。
+详细的用法请打开AAuto标准库，查看 zeromq支持库的源码，也可以参考IDE的函数提示。
+
+> context = zeromq.context()  
+> > 创建上下文
+
+> context.term(); 
+> > 关闭上下文
+
+> socket = context.zmq_socket_***()
+> > 创建套接字，不字的后缀指定不同的模式，例如 context.zmq_socket_request() 创建 REQ模式的套接字
+
+> 消息对象 = zeromq.message() 
+> > 创建一个消息对象。 
+
+> socket.recvMsg( 消息对象 ) 
+> > 用于接收一个消息对象。
+
+> socket.sendMsg( 消息对象  ) 
+> > 用于发送一个消息对象。
+
+> socket.recv( 字符串,长度,选项 ) 
+> > 用于接收并返回一个字符串，这个函数内部实际上是创建了一个默认的消息对象然后调用 responder.recvMsg()
+
+> socket.send( 字符串,长度,选项 ) 
+> > 用于发送字符串或 raw.malloc() 分配的缓冲区对象
+
+socket.recv() socket.send() 是带Msg后缀的对应函数的简化版本，
+由标准库自动创建一个默认的消息对象发送或接受字符串。
+
+前面的REQ客户端源码我们将 requester.recv() 改为使用 requester.recvMsg() 实现如下：
+
+```javascript
+import zeromq
+import console;
+
+var context = zeromq.context(10)  
+var requester = context.zmq_socket_request();  
+if( requester.connect( "tcp://localhost:5559" ) ){
+    console.log("连接成功")
+}
+ 
+requester.send("Hello") 
+
+var reply = zeromq.message()  
+requester.recvMsg(reply);  
+console.log ("客户端收到消息 ", reply.getString() );
+reply.close()
+
+context.term(); 
+```
+ 
+
+本指南以AAuto作为示例程序的语言，
+如果你正在阅读本指南的在线版本，你可以看到示例代码的下方有其他语言的实现。如以下是PHP语言：
 
 **hwserver.php: Hello World server**
 
@@ -190,54 +202,9 @@ while(true) {
 }
 ```
 
-下面是客户端的代码：
 
-**hwclient: Hello World client in C**
 
-```c
-//
-//  Hello World 客户端
-//  连接REQ套接字至 tcp://localhost:5555
-//  发送Hello给服务端，并接收World
-//
-#include <zmq.h>
-#include <string.h>
-#include <stdio.h>
-#include <unistd.h>
- 
-int main (void)
-{
-    void *context = zmq_init (1);
- 
-    //  连接至服务端的套接字
-    printf ("正在连接至hello world服务端...\n");
-    void *requester = zmq_socket (context, ZMQ_REQ);
-    zmq_connect (requester, "tcp://localhost:5555");
- 
-    int request_nbr;
-    for (request_nbr = 0; request_nbr != 10; request_nbr++) {
-        zmq_msg_t request;
-        zmq_msg_init_size (&request, 5);
-        memcpy (zmq_msg_data (&request), "Hello", 5);
-        printf ("正在发送 Hello %d...\n", request_nbr);
-        zmq_send (requester, &request, 0);
-        zmq_msg_close (&request);
- 
-        zmq_msg_t reply;
-        zmq_msg_init (&reply);
-        zmq_recv (requester, &reply, 0);
-        printf ("接收到 World %d\n", request_nbr);
-        zmq_msg_close (&reply);
-    }
-    zmq_close (requester);
-    zmq_term (context);
-    return 0;
-}
-```
-
-这看起来是否太简单了？ZMQ就是这样一个东西，你往里加点儿料就能制作出一枚无穷能量的原子弹，用它来拯救世界吧！
-
-![2](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_2.png)
+![2](https://github.com/AAuto-Quicker/zguide-cn/raw/master/images/chapter1_2.png)
 
 理论上你可以连接千万个客户端到这个服务端上，同时连接都没问题，程序仍会运作得很好。你可以尝试一下先打开客户端，再打开服务端，可以看到程序仍然会正常工作，想想这意味着什么。
 
@@ -255,7 +222,7 @@ ZMQ不会关心发送消息的内容，只要知道它所包含的字节数。�
 zmq_msg_init_data (&request, "Hello", 6, NULL, NULL);
 ```
 
-但是，如果你用其他语言发送这个字符串，很可能不会包含这个空字节，如你使用Python发送：
+但是，如果你用其他语言发送这个字符串，很可能不会包含这个空字节，如你使用AAuto发送：
 
 ```python
 socket.send ("Hello")
@@ -263,7 +230,7 @@ socket.send ("Hello")
 
 实际发送的消息是：
 
-![3](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_3.png)
+![3](https://github.com/AAuto-Quicker/zguide-cn/raw/master/images/chapter1_3.png)
 
 如果你从C语言中读取该消息，你会读到一个类似于字符串的内容，甚至它可能就是一个字符串（第六位在内存中正好是一个空字符），但是这并不合适。这样一来，客户端和服务端对字符串的定义就不统一了，你会得到一些奇怪的结果。
 
@@ -297,22 +264,14 @@ s_recv (void *socket) {
 
 ZMQ目前有多个版本，而且仍在持续更新。如果你遇到了问题，也许这在下一个版本中已经解决了。想知道目前的ZMQ版本，你可以在程序中运行如下：
 
-**version: ØMQ version reporting in C**
+**version: ØMQ version reporting  ( AAuto 源码 ) **
 
-```c
-//
-// 返回当前ZMQ的版本号
-//
-#include "zhelpers.h"
- 
-int main (void)
-{
-    int major, minor, patch;
-    zmq_version (&major, &minor, &patch);
-    printf ("当前ZMQ版本号为 %d.%d.%d\n", major, minor, patch);
- 
-    return EXIT_SUCCESS;
-}
+```javascript
+import console;
+import zeromq;
+
+var major, minor, patch = zeromq.zmq_version(0,0,0)
+console.printf("当前ZMQ版本号为 %d.%d.%d",major, minor, patch )
 ```
 
 ### 让消息流动起来
@@ -321,94 +280,75 @@ int main (void)
 
 下面是服务端的代码，使用5556端口：
 
-**wuserver: Weather update server in C**
+**wuserver: Weather update server in AAuto
 
-```c
-//
-//  气象信息更新服务
-//  绑定PUB套接字至tcp://*:5556端点
-//  发布随机气象信息
-//
-#include "zhelpers.h"
- 
-int main (void)
-{
-    //  准备上下文和PUB套接字
-    void *context = zmq_init (1);
-    void *publisher = zmq_socket (context, ZMQ_PUB);
-    zmq_bind (publisher, "tcp://*:5556");
-    zmq_bind (publisher, "ipc://weather.ipc");
- 
-    //  初始化随机数生成器
-    srandom ((unsigned) time (NULL));
-    while (1) {
-        //  生成数据
-        int zipcode, temperature, relhumidity;
-        zipcode     = randof (100000);
-        temperature = randof (215) - 80;
-        relhumidity = randof (50) + 10;
- 
-        //  向所有订阅者发送消息
-        char update [20];
-        sprintf (update, "%05d %d %d", zipcode, temperature, relhumidity);
-        s_send (publisher, update);
-    }
-    zmq_close (publisher);
-    zmq_term (context);
-    return 0;
+```javascript
+import zeromq;
+import console;
+
+// 准备上下文和PUB套接字
+var context = zeromq.context()
+var publisher = context.zmq_socket_pub()
+publisher.bind("tcp://*:5556")
+
+console.log("气象信息发布服务已启动")
+while( sleep(1) ){
+
+    // 生成数据
+    var zipcode = math.random(10000, 11000)
+    var temperature = math.random(-80, 135)
+    var relhumidity = math.random(10, 60)
+
+    // 向所有订阅者发送消息
+    publisher.send( string.format("%05d %d %d", zipcode, temperature, relhumidity) )
 }
+
+publisher.close()
 ```
 
 这项更新服务没有开始、没有结束，就像永不消失的电波一样。
 
-![4](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_4.png)
+![4](https://github.com/AAuto-Quicker/zguide-cn/raw/master/images/chapter1_4.png)
 
 下面是客户端程序，它会接受发布者的消息，只处理特定邮编标注的信息，如纽约的邮编是10001:
 
-**wuclient: Weather update client in C**
+**wuclient: Weather update client in AAuto
 
-```c
-//
-//  气象信息客户端
-//  连接SUB套接字至tcp://*:5556端点
-//  收集指定邮编的气象信息，并计算平均温度
-//
-#include "zhelpers.h"
- 
-int main (int argc, char *argv [])
-{
-    void *context = zmq_init (1);
- 
-    //  创建连接至服务端的套接字
-    printf ("正在收集气象信息...\n");
-    void *subscriber = zmq_socket (context, ZMQ_SUB);
-    zmq_connect (subscriber, "tcp://localhost:5556");
- 
-    //  设置订阅信息，默认为纽约，邮编10001
-    char *filter = (argc > 1)? argv [1]: "10001 ";
-    zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
- 
-    //  处理100条更新信息
-    int update_nbr;
-    long total_temp = 0;
-    for (update_nbr = 0; update_nbr < 100; update_nbr++) {
-        char *string = s_recv (subscriber);
-        int zipcode, temperature, relhumidity;
-        sscanf (string, "%d %d %d",
-            &zipcode, &temperature, &relhumidity);
-        total_temp += temperature;
-        free (string);
-    }
-    printf ("地区邮编 '%s' 的平均温度为 %dF\n",
-        filter, (int) (total_temp / update_nbr));
- 
-    zmq_close (subscriber);
-    zmq_term (context);
-    return 0;
+```javascript
+/*
+ 气象信息客户端
+ 连接SUB套接字至tcp://*:5556端点
+ 收集指定邮编的气象信息，并计算平均温度
+*/
+
+import zeromq;
+import console;
+
+var context = zeromq.context() 
+var subscriber = context.zmq_socket_sub()
+subscriber.connect(  "tcp://localhost:5556" )
+
+// 设置订阅信息，默认为纽约，邮编10001
+subscriber.setsockopt(6/*_ZMQ_SUBSCRIBE*/,{ BYTE value[] = "10001" } )
+
+//处理100条更新信息 
+var totalTemp = 0;
+for(i=1;10) {
+    var msg = subscriber.recv()
+    var zipcode, temperature, relhumidity = string.match(msg,"(\d+)\s*(\d+)\s*(\d+)")
+    console.log( i,temperature )
+    totalTemp += temperature;
 }
+
+console.printf("地区邮编 '10001' 的平均温度为 %dF", (totalTemp / 10)  )
+
+subscriber.close();
+context.term();
 ```
 
-需要注意的是，在使用SUB套接字时，必须使用zmq_setsockopt()方法来设置订阅的内容。如果你不设置订阅内容，那将什么消息都收不到，新手很容易犯这个错误。订阅信息可以是任何字符串，可以设置多次。只要消息满足其中一条订阅信息，SUB套接字就会收到。订阅者可以选择不接收某类消息，也是通过zmq_setsockopt()方法实现的。
+需要注意的是，在使用SUB套接字时，必须使用subscriber.setsockopt()方法来设置订阅的内容。
+这个函数的第二个参数是一个结构体，如果该参数是一个字符串 - 可以象上面的示例那样使用BYTE[]类型的字节码数组代替。
+如果你不设置订阅内容，那将什么消息都收不到，新手很容易犯这个错误。订阅信息可以是任何字符串，可以设置多次。只要消息满足其中一条订阅信息，SUB套接字就会收到。订阅者可以选择不接收某类消息，也是通过zmq_setsockopt()方法实现的。
 
 PUB-SUB套接字组合是异步的。客户端在一个循环体中使用zmq_recv()接收消息，如果向SUB套接字发送消息则会报错；类似地，服务端可以不断地使用zmq_send()发送消息，但不能再PUB套接字上使用zme_recv()。
 
@@ -512,7 +452,7 @@ int main (void)
 }
 ```
 
-![5](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_5.png)
+![5](https://github.com/AAuto-Quicker/zguide-cn/raw/master/images/chapter1_5.png)
 
 下面是worker的代码，它接受信息并延迟指定的毫秒数，并发送执行完毕的信号：
 
@@ -629,7 +569,7 @@ Total elapsed time: 1018 msec
 
 * 结果收集器的PULL套接字会均匀地从worker处收集消息，这种机制称为_公平队列_：
 
-![6](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_6.png)
+![6](https://github.com/AAuto-Quicker/zguide-cn/raw/master/images/chapter1_6.png)
 
 管道模式也会出现慢连接的情况，让人误以为PUSH套接字没有进行负载均衡。如果你的程序中某个worker接收到了更多的请求，那是因为它的PULL套接字连接得比较快，从而在别的worker连接之前获取了额外的消息。
 
@@ -823,7 +763,7 @@ ZMQ应用程序的一开始总是会先创建一个上下文，并用它来创�
 
 我们可以找一个开源软件来做例子，如[Hadoop Zookeeper](http://hadoop.apache.org/zookeeper/)，看一下它的C语言API源码，[src/c/src/zookeeper.c]([http://github.com/apache/zookeeper/blob/trunk/src/c/src/zookeeper.c src/c/src/zookeeper.c)。这段代码大约有3200行，没有注释，实现了一个C/S网络通信协议。它工作起来很高效，因为使用了poll()来代替select()。但是，Zookeeper应该被抽象出来，作为一种通用的消息通信层，并加以详细的注释。像这样的模块应该得到最大程度上的复用，而不是重复地制造轮子。
 
-![7](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_7.png)
+![7](https://github.com/AAuto-Quicker/zguide-cn/raw/master/images/chapter1_7.png)
 
 但是，如何编写这样一个可复用的消息层呢？为什么长久以来人们宁愿在自己的代码中重复书写控制原始TCP套接字的代码，而不愿编写这样一个公共库呢？
 
@@ -835,7 +775,7 @@ ZMQ应用程序的一开始总是会先创建一个上下文，并用它来创�
 
 这样一来，中小应用程序的开发者们就无计可施了。他们只能设法避免编写网络应用程序，转而编写那些不需要扩展的程序；或者可以使用原始的方式进行网络编程，但编写的软件会非常脆弱和复杂，难以维护；亦或者他们选择一种消息通信产品，虽然能够开发出扩展性强的应用程序，但需要支付高昂的代价。似乎没有一种选择是合理的，这也是为什么在上个世纪消息系统会成为一个广泛的问题。
 
-![8](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_8.png)
+![8](https://github.com/AAuto-Quicker/zguide-cn/raw/master/images/chapter1_8.png)
 
 我们真正需要的是这样一种消息软件，它能够做大型消息软件所能做的一切，但使用起来又非常简单，成本很低，可以用到所有的应用程序中，没有任何依赖条件。因为没有了额外的模块，就降低了出错的概率。这种软件需要能够在所有的操作系统上运行，并能支持所有的编程语言。
 
@@ -889,7 +829,7 @@ wuclient 56789 &
 
 在编写ZMQ应用程序时，你遇到最多的问题可能是无法获得消息。下面有一个问题解决路线图，列举了最基本的出错原因。不用担心其中的某些术语你没有见过，在后面的几章里都会讲到。
 
-![9](https://github.com/haozu/zguide-cn/raw/master/images/chapter1_9.png)
+![9](https://github.com/AAuto-Quicker/zguide-cn/raw/master/images/chapter1_9.png)
 
 如果ZMQ在你的应用程序中扮演非常重要的角色，那你可能就需要好好计划一下了。首先，创建一个原型，用以测试设计方案的可行性。采取一些压力测试的手段，确保它足够的健壮。其次，主攻测试代码，也就是编写测试框架，保证有足够的电力供应和时间，来进行高强度的测试。理想状态下，应该由一个团队编写程序，另一个团队负责击垮它。最后，让你的公司及时[联系iMatix](http://www.imatix.com/contact)，获得技术上的支持。
 
